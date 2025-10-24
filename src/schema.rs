@@ -527,6 +527,10 @@ impl Team {
         &self.people.members
     }
 
+    pub(crate) fn explicit_leads(&self) -> &[String] {
+        &self.people.leads
+    }
+
     pub(crate) fn explicit_alumni(&self) -> &[TeamMember] {
         self.people.alumni.as_ref().map_or(&[], Vec::as_slice)
     }

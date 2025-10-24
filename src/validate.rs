@@ -58,6 +58,7 @@ static CHECKS: &[Check<fn(&Data, &mut Vec<String>)>] = checks![
     validate_member_roles,
     validate_admin_access,
     validate_website,
+    validate_duplicate_members,
 ];
 
 #[allow(clippy::type_complexity)]
@@ -1145,4 +1146,52 @@ fn validate_website(data: &Data, errors: &mut Vec<String>) {
         }
         Ok(())
     })
+}
+
+// Helper for checking duplicates in a list
+fn check_duplicates<'a, I>(team_name: &str, label: &str, items: I) -> Result<(), Error>
+where
+    I: IntoIterator<Item = &'a str>,
+{
+    let mut seen = HashSet::new();
+    let mut duplicates = HashSet::new();
+
+    for item in items {
+        if !seen.insert(item) {
+            duplicates.insert(item);
+        }
+    }
+
+    if !duplicates.is_empty() {
+        let dup_list: Vec<&str> = duplicates.into_iter().collect();
+        bail!(
+            "team `{}` has duplicate {}: {}",
+            team_name,
+            label,
+            dup_list.join(", ")
+        );
+    }
+
+    Ok(())
+}
+
+fn validate_duplicate_members(data: &Data, errors: &mut Vec<String>) {
+    wrapper(data.teams(), errors, |team, _| {
+        check_duplicates(
+            team.name(),
+            "leads",
+            team.explicit_leads().iter().map(|s| s.as_str()),
+        )?;
+        check_duplicates(
+            team.name(),
+            "members",
+            team.explicit_members().iter().map(|m| m.github.as_str()),
+        )?;
+        check_duplicates(
+            team.name(),
+            "alumni",
+            team.explicit_alumni().iter().map(|a| a.github.as_str()),
+        )?;
+        Ok(())
+    });
 }
